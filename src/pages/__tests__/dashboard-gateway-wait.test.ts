@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { waitForDashboardGatewayRunning } from '../Dashboard'
 
 const FAST_POLL_POLICY = {
@@ -8,6 +8,14 @@ const FAST_POLL_POLICY = {
   backoffFactor: 1,
 } as const
 
+beforeEach(() => {
+  vi.useFakeTimers()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('waitForDashboardGatewayRunning', () => {
   it('waits until gateway health reports running', async () => {
     const gatewayHealth = vi
@@ -16,10 +24,12 @@ describe('waitForDashboardGatewayRunning', () => {
       .mockResolvedValueOnce({ running: false, summary: '恢复中' })
       .mockResolvedValueOnce({ running: true, summary: 'Gateway 已确认可用' })
 
-    const result = await waitForDashboardGatewayRunning(
+    const resultPromise = waitForDashboardGatewayRunning(
       { gatewayHealth },
       { policy: FAST_POLL_POLICY }
     )
+    await vi.advanceTimersByTimeAsync(2)
+    const result = await resultPromise
 
     expect(result).toEqual({
       ok: true,
@@ -36,10 +46,12 @@ describe('waitForDashboardGatewayRunning', () => {
       .fn()
       .mockResolvedValue({ running: false, summary: 'Gateway 仍在恢复中' })
 
-    const result = await waitForDashboardGatewayRunning(
+    const resultPromise = waitForDashboardGatewayRunning(
       { gatewayHealth },
       { policy: FAST_POLL_POLICY }
     )
+    await vi.advanceTimersByTimeAsync(20)
+    const result = await resultPromise
 
     expect(result).toEqual({
       ok: false,
